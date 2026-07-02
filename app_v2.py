@@ -111,7 +111,7 @@ div[data-testid="stSidebar"] { background: #F1F5F9; border-right: 1px solid #E2E
 /* Centers fixed-width charts (e.g. the gauge) within their column; charts
    using use_container_width=True already fill the full width, so this is a
    no-op for them. */
-div[data-testid="stPlotlyChart"] { display: flex; justify-content: center; }
+div[data-testid="stPlotlyChart"] { display: flex; justify-content: center; width: 100%; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -946,7 +946,7 @@ with tab4:
     # matches the factor-card label style exactly (Plotly's title font API
     # has no uppercase/letter-spacing/weight controls).
     st.markdown(
-        "<div style='font-size:10px;font-weight:600;text-transform:uppercase;"
+        "<div style='font-size:14px;font-weight:600;text-transform:uppercase;"
         "letter-spacing:.06em;color:#64748B;text-align:center'>Composite Signal Score</div>",
         unsafe_allow_html=True
     )
@@ -971,9 +971,10 @@ with tab4:
     # which throws off where Plotly centers the number relative to the arc.
     gauge_fig.update_layout(width=420, height=220, margin=dict(l=40,r=40,t=30,b=20),
                             paper_bgcolor="#fff", font=dict(family="Inter, Arial, sans-serif"))
-    g1, g2, g3 = st.columns([1,2,1])
-    with g2:
-        st.plotly_chart(gauge_fig, use_container_width=False)
+    # No column wrapper: centered directly against the full row width via the
+    # stPlotlyChart CSS rule above, so it aligns with the 5-card row above it
+    # rather than a narrower sub-column.
+    st.plotly_chart(gauge_fig, use_container_width=False)
 
     st.divider()
 
