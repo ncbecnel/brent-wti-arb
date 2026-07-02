@@ -15,15 +15,17 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Reads from Streamlit secrets when deployed (Settings > Secrets on
-# share.streamlit.io); falls back to these values for local development,
-# where no secrets.toml file exists.
+# Local dev: set these in .streamlit/secrets.toml (gitignored).
+# Deployed: set these in Settings > Secrets on share.streamlit.io.
 try:
     EIA_KEY  = st.secrets["EIA_KEY"]
     FRED_KEY = st.secrets["FRED_KEY"]
 except Exception:
-    EIA_KEY  = "qg6g9ytCJuhh2mYavTxGFTYGv1aOcngu5a9bONUc"
-    FRED_KEY = "8fc32d4078e774fd1bd18d73d959fe7b"
+    st.error(
+        "Missing EIA_KEY / FRED_KEY. Add them to .streamlit/secrets.toml locally, "
+        "or in Settings > Secrets when deployed on Streamlit Community Cloud."
+    )
+    st.stop()
 
 # ── Colour palette ──────────────────────────────────────────────
 C = {
