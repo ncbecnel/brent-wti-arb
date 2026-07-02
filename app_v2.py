@@ -633,7 +633,7 @@ with tab2:
         rows=3, cols=1, shared_xaxes=True,
         subplot_titles=("Brent & WTI Spot Prices ($/bbl)",
                         f"Net Arbitrage Margin after ${total_cost:.2f}/bbl logistics ($/bbl)",
-                        "US Crude Inventory, National Aggregate (thousand barrels)"),
+                        "US Crude Inventory: National Aggregate (thousand barrels)"),
         vertical_spacing=0.07,
         row_heights=[0.35, 0.35, 0.30]
     )
@@ -756,7 +756,7 @@ with tab3:
 
     struct_fig.update_layout(**PLOT_LAYOUT, height=280,
                             yaxis_title="Structure proxy (std. score)",
-                            title="Estimated Market Tightness, Cushing Inventory Proxy")
+                            title="Estimated Market Tightness: Cushing Inventory Proxy")
     struct_fig.update_yaxes(showgrid=True, gridcolor=C["grid"])
     struct_fig.update_xaxes(showgrid=False)
     st.plotly_chart(struct_fig, use_container_width=True)
@@ -912,7 +912,7 @@ with tab4:
     st.divider()
 
     # Signal breakdown
-    st.markdown("<div class='section-title'>Opportunity Signal, Factor Breakdown</div>",
+    st.markdown("<div class='section-title'>Opportunity Signal: Factor Breakdown</div>",
                 unsafe_allow_html=True)
 
     sig_cols = st.columns(len(sig["scores"]))
