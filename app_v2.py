@@ -955,11 +955,14 @@ with tab4:
             "threshold": {"line": {"color": "#0F172A", "width": 2}, "value": 0}
         }
     ))
-    gauge_fig.update_layout(height=220, margin=dict(l=40,r=40,t=40,b=20),
+    # Fixed width/height at roughly the aspect ratio a half-donut gauge needs.
+    # use_container_width=True was stretching this across a wide column,
+    # which throws off where Plotly centers the number relative to the arc.
+    gauge_fig.update_layout(width=420, height=240, margin=dict(l=40,r=40,t=60,b=20),
                             paper_bgcolor="#fff", font=dict(family="Inter, Arial, sans-serif"))
     g1, g2, g3 = st.columns([1,2,1])
     with g2:
-        st.plotly_chart(gauge_fig, use_container_width=True)
+        st.plotly_chart(gauge_fig, use_container_width=False)
 
     st.divider()
 
