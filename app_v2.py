@@ -108,6 +108,10 @@ div[data-testid="stMetricValue"] { font-size: 22px; font-weight: 600; color: #0F
 }
 .stTabs [aria-selected="true"] { color: #2563EB; border-bottom: 2px solid #2563EB; }
 div[data-testid="stSidebar"] { background: #F1F5F9; border-right: 1px solid #E2E8F0; }
+/* Centers fixed-width charts (e.g. the gauge) within their column; charts
+   using use_container_width=True already fill the full width, so this is a
+   no-op for them. */
+div[data-testid="stPlotlyChart"] { display: flex; justify-content: center; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -938,10 +942,17 @@ with tab4:
     # len(scores), not a fixed constant.
     max_score = len(sig["scores"])
     st.markdown("<br>", unsafe_allow_html=True)
+    # Rendered as HTML instead of Plotly's native indicator title, so it
+    # matches the factor-card label style exactly (Plotly's title font API
+    # has no uppercase/letter-spacing/weight controls).
+    st.markdown(
+        "<div style='font-size:10px;font-weight:600;text-transform:uppercase;"
+        "letter-spacing:.06em;color:#64748B;text-align:center'>Composite Signal Score</div>",
+        unsafe_allow_html=True
+    )
     gauge_fig = go.Figure(go.Indicator(
         mode="gauge+number",
         value=sig["total_score"],
-        title={"text": "Composite Signal Score", "font": {"size": 14}},
         number={"font": {"size": 28}},
         gauge={
             "axis": {"range": [-max_score, max_score], "tickvals": list(range(-max_score, max_score + 1))},
@@ -958,7 +969,7 @@ with tab4:
     # Fixed width/height at roughly the aspect ratio a half-donut gauge needs.
     # use_container_width=True was stretching this across a wide column,
     # which throws off where Plotly centers the number relative to the arc.
-    gauge_fig.update_layout(width=420, height=240, margin=dict(l=40,r=40,t=60,b=20),
+    gauge_fig.update_layout(width=420, height=220, margin=dict(l=40,r=40,t=30,b=20),
                             paper_bgcolor="#fff", font=dict(family="Inter, Arial, sans-serif"))
     g1, g2, g3 = st.columns([1,2,1])
     with g2:
