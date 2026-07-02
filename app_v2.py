@@ -574,9 +574,11 @@ with tab1:
     c2.metric("WTI",   f"${cur_wti:.2f}")
     c3.metric("Gross Spread", f"${cur_spread:.2f}")
     c4.metric("Logistics Cost", f"${total_cost:.2f}")
-    arb_label = "Open" if cur_margin > 0 else "Closed"
-    c5.metric("Net Margin", f"${cur_margin:.2f}", delta=arb_label,
-              delta_color="normal" if cur_margin > 0 else "inverse")
+    # Numeric delta (not a plain "Open"/"Closed" string) so Streamlit infers
+    # arrow direction from the actual sign — a string delta with no leading
+    # "-" always renders an up arrow regardless of delta_color, which showed
+    # an up arrow on a negative, closed margin.
+    c5.metric("Net Margin", f"${cur_margin:.2f}", delta=round(cur_margin, 2), delta_color="normal")
     pnl_str = f"${cargo_pnl:,.0f}" if cargo_pnl >= 0 else f"-${abs(cargo_pnl):,.0f}"
     c6.metric(f"Cargo P&L ({cargo_sel.split()[0]})", pnl_str)
 
