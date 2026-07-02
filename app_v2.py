@@ -962,15 +962,20 @@ with tab4:
             "threshold": {"line": {"color": "#0F172A", "width": 2}, "value": 0}
         }
     ))
-    gauge_fig.update_layout(height=220, margin=dict(l=40,r=40,t=30,b=20),
+    gauge_fig.update_layout(height=280, margin=dict(l=40,r=40,t=30,b=20),
                             paper_bgcolor="#fff", font=dict(family="Inter, Arial, sans-serif"))
     # Reuses the same N-column grid as the factor cards above (rather than a
     # CSS-centering trick, which Streamlit's own styles were overriding) and
     # places the gauge in the middle slot with use_container_width=True, so
     # it's aligned under the middle card by construction, not by guesswork.
+    # The middle slot is widened (symmetric ratios, so the center point is
+    # unchanged) purely to give the gauge more room to render at a larger size.
     n = len(sig["scores"])
-    gauge_cols = st.columns(n)
-    with gauge_cols[n // 2]:
+    mid = n // 2
+    ratios = [1] * n
+    ratios[mid] = 3
+    gauge_cols = st.columns(ratios)
+    with gauge_cols[mid]:
         st.plotly_chart(gauge_fig, use_container_width=True)
 
     st.divider()
