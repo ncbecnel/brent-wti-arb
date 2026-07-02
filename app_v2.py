@@ -108,10 +108,6 @@ div[data-testid="stMetricValue"] { font-size: 22px; font-weight: 600; color: #0F
 }
 .stTabs [aria-selected="true"] { color: #2563EB; border-bottom: 2px solid #2563EB; }
 div[data-testid="stSidebar"] { background: #F1F5F9; border-right: 1px solid #E2E8F0; }
-/* Centers fixed-width charts (e.g. the gauge) within their column; charts
-   using use_container_width=True already fill the full width, so this is a
-   no-op for them. */
-div[data-testid="stPlotlyChart"] { display: flex; justify-content: center; width: 100%; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -966,15 +962,16 @@ with tab4:
             "threshold": {"line": {"color": "#0F172A", "width": 2}, "value": 0}
         }
     ))
-    # Fixed width/height at roughly the aspect ratio a half-donut gauge needs.
-    # use_container_width=True was stretching this across a wide column,
-    # which throws off where Plotly centers the number relative to the arc.
-    gauge_fig.update_layout(width=420, height=220, margin=dict(l=40,r=40,t=30,b=20),
+    gauge_fig.update_layout(height=220, margin=dict(l=40,r=40,t=30,b=20),
                             paper_bgcolor="#fff", font=dict(family="Inter, Arial, sans-serif"))
-    # No column wrapper: centered directly against the full row width via the
-    # stPlotlyChart CSS rule above, so it aligns with the 5-card row above it
-    # rather than a narrower sub-column.
-    st.plotly_chart(gauge_fig, use_container_width=False)
+    # Reuses the same N-column grid as the factor cards above (rather than a
+    # CSS-centering trick, which Streamlit's own styles were overriding) and
+    # places the gauge in the middle slot with use_container_width=True, so
+    # it's aligned under the middle card by construction, not by guesswork.
+    n = len(sig["scores"])
+    gauge_cols = st.columns(n)
+    with gauge_cols[n // 2]:
+        st.plotly_chart(gauge_fig, use_container_width=True)
 
     st.divider()
 
