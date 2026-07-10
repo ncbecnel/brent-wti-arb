@@ -570,8 +570,10 @@ with tab1:
 
     # KPI row
     c1,c2,c3,c4,c5,c6 = st.columns(6)
-    c1.metric("Brent", f"${cur_brent:.2f}")
-    c2.metric("WTI",   f"${cur_wti:.2f}")
+    c1.metric("Brent", f"${cur_brent:.2f}",
+              help="Dated Brent spot (EIA), the assessed physical price. Most news headlines quote ICE Brent futures instead, which can differ by several dollars when the futures curve isn't flat.")
+    c2.metric("WTI", f"${cur_wti:.2f}",
+              help="WTI Cushing spot (EIA), the assessed physical price. Most news headlines quote NYMEX WTI futures instead, which can differ by several dollars when the futures curve isn't flat.")
     c3.metric("Gross Spread", f"${cur_spread:.2f}")
     c4.metric("Logistics Cost", f"${total_cost:.2f}")
     # Numeric delta (not a plain "Open"/"Closed" string) so Streamlit infers
@@ -633,7 +635,7 @@ with tab1:
 with tab2:
     fig2 = make_subplots(
         rows=3, cols=1, shared_xaxes=True,
-        subplot_titles=("Brent & WTI Spot Prices ($/bbl)",
+        subplot_titles=("Brent & WTI Spot Prices, EIA Physical Benchmarks, Not Futures ($/bbl)",
                         f"Net Arbitrage Margin after ${total_cost:.2f}/bbl logistics ($/bbl)",
                         "US Crude Inventory: National Aggregate (thousand barrels)"),
         vertical_spacing=0.07,
@@ -1021,7 +1023,7 @@ Not real futures data, and inventory-only, so it misses geopolitical shocks. The
 is real market data and covers that gap.
 
 **Data Sources**
-- Brent & WTI spot prices: EIA (daily)
+- Brent & WTI spot prices (physical, not futures): EIA (daily)
 - US crude inventory (national & Cushing, OK): EIA Weekly Petroleum Status Report
 - Trade-weighted USD index (DTWEXBGS): Federal Reserve / FRED
 - US crude production (WCRFPUS2): EIA Weekly Petroleum Status Report
