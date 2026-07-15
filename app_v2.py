@@ -27,6 +27,16 @@ except Exception:
     )
     st.stop()
 
+# Optional: powers a live current-price supplement on the Snapshot tab only.
+# EIA's daily close can lag by a week or more (it's the authoritative source
+# for the historical series the model is built on, but not always current).
+# The app works fine without this secret, it just falls back to EIA's latest
+# close for the "current price" cards.
+try:
+    OILPRICEAPI_KEY = st.secrets["OILPRICEAPI_KEY"]
+except Exception:
+    OILPRICEAPI_KEY = None
+
 # ── Colour palette ──────────────────────────────────────────────
 C = {
     "brent":     "#2563EB",
@@ -211,6 +221,28 @@ def fetch_us_production(days: int = 548) -> pd.DataFrame:
     params["frequency"] = "weekly"
     # Return empty df with correct columns if all fails
     return pd.DataFrame(columns=["period", "us_production_kbd"])
+
+
+@st.cache_data(ttl=600)
+def fetch_live_price(code: str):
+    """Live spot price from oilpriceapi.com (WTI_USD / BRENT_CRUDE_USD).
+    Returns None on any failure (missing key, rate limit, outage) so callers
+    can fall back to the EIA historical close instead of breaking the page.
+    """
+    if not OILPRICEAPI_KEY:
+        return None
+    try:
+        r = requests.get(
+            "https://api.oilpriceapi.com/v1/prices/latest",
+            params={"by_code": code},
+            headers={"Authorization": f"Token {OILPRICEAPI_KEY}"},
+            timeout=10,
+        )
+        r.raise_for_status()
+        d = r.json()["data"]
+        return {"price": float(d["price"]), "as_of": pd.to_datetime(d["as_of"])}
+    except Exception:
+        return None
 
 
 @st.cache_data(ttl=3600)
@@ -538,7 +570,24 @@ cur_brent    = latest["brent"]
 cur_wti      = latest["wti"]
 cur_date     = latest["period"].strftime("%d %b %Y")
 arb_open_pct = prices["arb_open"].mean() * 100
-cargo_pnl    = cur_margin * cargo_bbls
+price_is_live = False
+live_as_of    = None
+
+# Snapshot-only override: EIA's daily close can lag by a week or more (the
+# historical series itself stays EIA-based everywhere else in the app, that's
+# what the regression and structure proxy need). If a live quote is available,
+# use it just for the "current price" cards so they don't look stuck.
+live_wti   = fetch_live_price("WTI_USD")
+live_brent = fetch_live_price("BRENT_CRUDE_USD")
+if live_wti and live_brent:
+    cur_wti       = live_wti["price"]
+    cur_brent     = live_brent["price"]
+    cur_spread    = cur_brent - cur_wti
+    cur_margin    = cur_spread - total_cost
+    price_is_live = True
+    live_as_of    = max(live_wti["as_of"], live_brent["as_of"])
+
+cargo_pnl = cur_margin * cargo_bbls
 
 sig = compute_signal(data, cur_margin, total_cost)
 
@@ -565,15 +614,24 @@ tab1, tab2, tab3, tab4 = st.tabs([
 # TAB 1 — SNAPSHOT
 # ════════════════════════════════════════════════════════════════
 with tab1:
-    st.markdown(f"<div style='font-size:12px;color:#94A3B8;margin-bottom:16px'>Last price data: {cur_date}</div>",
+    if price_is_live:
+        price_status = f"🟢 Live price as of {live_as_of.strftime('%d %b %Y, %H:%M UTC')} (oilpriceapi.com)"
+    else:
+        price_status = f"Last EIA close: {cur_date} (live price unavailable, showing official close instead)"
+    st.markdown(f"<div style='font-size:12px;color:#94A3B8;margin-bottom:16px'>{price_status}</div>",
                 unsafe_allow_html=True)
 
     # KPI row
+    if price_is_live:
+        brent_help = "Live market-reporting price (oilpriceapi.com), aggregated from published market sources. Historical charts and the model elsewhere in this app use EIA's Dated Brent spot instead, since that needs a long consistent history, not a live tick."
+        wti_help   = "Live market-reporting price (oilpriceapi.com), aggregated from published market sources. Historical charts and the model elsewhere in this app use EIA's WTI Cushing spot instead, since that needs a long consistent history, not a live tick."
+    else:
+        brent_help = "Dated Brent spot (EIA), the assessed physical price. Most news headlines quote ICE Brent futures instead, which can differ by several dollars when the futures curve isn't flat."
+        wti_help   = "WTI Cushing spot (EIA), the assessed physical price. Most news headlines quote NYMEX WTI futures instead, which can differ by several dollars when the futures curve isn't flat."
+
     c1,c2,c3,c4,c5,c6 = st.columns(6)
-    c1.metric("Brent", f"${cur_brent:.2f}",
-              help="Dated Brent spot (EIA), the assessed physical price. Most news headlines quote ICE Brent futures instead, which can differ by several dollars when the futures curve isn't flat.")
-    c2.metric("WTI", f"${cur_wti:.2f}",
-              help="WTI Cushing spot (EIA), the assessed physical price. Most news headlines quote NYMEX WTI futures instead, which can differ by several dollars when the futures curve isn't flat.")
+    c1.metric("Brent", f"${cur_brent:.2f}", help=brent_help)
+    c2.metric("WTI", f"${cur_wti:.2f}", help=wti_help)
     c3.metric("Gross Spread", f"${cur_spread:.2f}")
     c4.metric("Logistics Cost", f"${total_cost:.2f}")
     # Numeric delta (not a plain "Open"/"Closed" string) so Streamlit infers
