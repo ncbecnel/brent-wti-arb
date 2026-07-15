@@ -241,7 +241,11 @@ def fetch_live_price(code: str):
         r.raise_for_status()
         d = r.json()["data"]
         return {"price": float(d["price"]), "as_of": pd.to_datetime(d["as_of"])}
-    except Exception:
+    except Exception as e:
+        # Swallowed for the user-facing fallback, but printed so it shows up
+        # in the deployed app's server logs ("Manage app" on Streamlit Cloud)
+        # instead of failing completely silently.
+        print(f"fetch_live_price({code!r}) failed: {type(e).__name__}: {e}")
         return None
 
 
