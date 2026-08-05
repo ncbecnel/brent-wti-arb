@@ -2,6 +2,7 @@ import streamlit as st
 import requests
 import pandas as pd
 import numpy as np
+import time
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from datetime import datetime, timedelta
@@ -123,6 +124,28 @@ div[data-testid="stSidebar"] { background: #F1F5F9; border-right: 1px solid #E2E
 
 
 # ── Data fetching ───────────────────────────────────────────────
+def _get_with_retry(url: str, params: dict, timeout: int = 25, retries: int = 3, backoff: float = 1.5):
+    """GET with retries on transient network errors (timeouts, connection
+    drops, 5xx) so one slow response from a free public API doesn't take
+    down the whole app. Does not retry 4xx errors (bad key, bad request) —
+    retrying those just wastes time since the response won't change.
+    """
+    last_exc = None
+    for attempt in range(retries):
+        try:
+            r = requests.get(url, params=params, timeout=timeout)
+            if r.status_code >= 500 and attempt < retries - 1:
+                time.sleep(backoff * (attempt + 1))
+                continue
+            r.raise_for_status()
+            return r
+        except (requests.exceptions.Timeout, requests.exceptions.ConnectionError) as e:
+            last_exc = e
+            if attempt < retries - 1:
+                time.sleep(backoff * (attempt + 1))
+    raise last_exc
+
+
 @st.cache_data(ttl=3600)
 def fetch_eia_series(series_ids: list, route: str, days: int = 548) -> pd.DataFrame:
     url   = f"https://api.eia.gov/v2/{route}/data/"
@@ -137,8 +160,7 @@ def fetch_eia_series(series_ids: list, route: str, days: int = 548) -> pd.DataFr
     }
     for i, s in enumerate(series_ids):
         params[f"facets[series][{i}]"] = s
-    r = requests.get(url, params=params, timeout=20)
-    r.raise_for_status()
+    r = _get_with_retry(url, params)
     rows = r.json()["response"]["data"]
     df = pd.DataFrame(rows)
     df["period"] = pd.to_datetime(df["period"])
@@ -159,8 +181,7 @@ def fetch_eia_weekly(series_id: str, route: str, days: int = 548) -> pd.DataFram
         "sort[0][column]": "period", "sort[0][direction]": "asc",
         "length": 5000,
     }
-    r = requests.get(url, params=params, timeout=20)
-    r.raise_for_status()
+    r = _get_with_retry(url, params)
     rows = r.json()["response"]["data"]
     df = pd.DataFrame(rows)
     df["period"] = pd.to_datetime(df["period"])
@@ -177,8 +198,7 @@ def fetch_fred(series_id: str, days: int = 548) -> pd.DataFrame:
         "observation_start": start, "file_type": "json",
         "sort_order": "asc",
     }
-    r = requests.get(url, params=params, timeout=20)
-    r.raise_for_status()
+    r = _get_with_retry(url, params)
     obs = r.json()["observations"]
     df = pd.DataFrame(obs)[["date", "value"]]
     df["date"]  = pd.to_datetime(df["date"])
@@ -204,8 +224,7 @@ def fetch_us_production(days: int = 548) -> pd.DataFrame:
         "length": 5000,
     }
     try:
-        r = requests.get(url, params=params, timeout=20)
-        r.raise_for_status()
+        r = _get_with_retry(url, params)
         rows = r.json()["response"]["data"]
         df = pd.DataFrame(rows)
         df["period"] = pd.to_datetime(df["period"])
@@ -548,7 +567,14 @@ with st.spinner("Loading market data..."):
         mdl    = build_driver_model(data, mlb_days)
         loaded = True
     except Exception as e:
-        st.error(f"Data load failed: {e}")
+        # Each upstream call already retries transient failures internally
+        # (see _get_with_retry); reaching here means it failed repeatedly,
+        # e.g. a genuine EIA/FRED outage, so offer a manual retry rather than
+        # a dead end.
+        st.error(f"Data load failed after retries: {e}")
+        if st.button("Retry now"):
+            st.cache_data.clear()
+            st.rerun()
         loaded = False
 
 if not loaded:
